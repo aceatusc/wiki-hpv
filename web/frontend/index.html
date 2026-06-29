@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <base href="/" />
+  <title>HPV Wiki Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ── Login ───────────────────────────────────────────────────────────────── -->
+<div id="login-overlay" class="login-overlay">
+  <form id="login-form" class="login-card">
+    <h1>HPV Wiki Editor</h1>
+    <p class="muted">Enter your name and the shared password to continue. Your name is recorded on every edit you save.</p>
+    <input id="name-input" type="text" placeholder="Your name" autocomplete="name" />
+    <input id="password-input" type="password" placeholder="Password" autocomplete="current-password" />
+    <button type="submit" class="btn btn-primary">Sign in</button>
+    <p id="login-error" class="error hidden"></p>
+  </form>
+</div>
+
+<!-- ── App ─────────────────────────────────────────────────────────────────── -->
+<div id="app" class="hidden">
+
+  <header class="topbar">
+    <a href="#" id="home-link" class="brand">HPV Wiki Editor</a>
+    <div class="topbar-right">
+      <span id="user-name" class="user-name muted small"></span>
+      <button id="logout-btn" class="btn btn-link">Log out</button>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="/" id="nav-home" class="nav-item active">Home</a>
+        <a href="/?ask" id="nav-ask" class="nav-item">Ask the wiki</a>
+      </nav>
+
+      <div class="explorer">
+        <div class="explorer-head">
+          <span class="explorer-title">Explorer</span>
+          <div class="explorer-actions">
+            <button id="new-file-btn" class="icon-btn" title="New file">＋</button>
+            <button id="refresh-btn" class="icon-btn" title="Refresh">↻</button>
+          </div>
+        </div>
+        <div id="file-tree" class="file-tree"></div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="content">
+
+      <!-- Home view (default) -->
+      <section id="home-view" class="view">
+        <details class="help-card" open>
+          <summary>How this editor works</summary>
+          <ul>
+            <li><strong>Browse</strong> pages in the Explorer on the left. Every page has its own
+              shareable link in the address bar.</li>
+            <li><strong>Edit</strong> a page by opening it and switching to the <em>Write</em> tab.
+              Click <strong>Save</strong> when done — your changes are written to the wiki right away.</li>
+            <li><strong>Create</strong> a new page with the ＋ button, or <strong>Delete</strong> the
+              open page from its footer.</li>
+            <li><strong>Ask the wiki</strong> (left nav) answers questions grounded in these pages,
+              with evidence tiers cited.</li>
+          </ul>
+          <p class="muted small">This is a synthesis of sources — not medical advice.</p>
+        </details>
+
+        <p class="muted">Pick a page from the Explorer on the left to start reading or editing.</p>
+      </section>
+
+      <!-- Ask view (secondary) -->
+      <section id="ask-view" class="view hidden">
+        <h1 class="page-title">Ask the wiki</h1>
+        <p class="muted ask-help">
+          Ask a question about HPV. Answers are grounded in the wiki and cite their evidence tier
+          (T1–T4). This is a synthesis of sources — not medical advice.
+        </p>
+        <form id="ask-form" class="ask-form">
+          <textarea id="ask-input" rows="3" placeholder="e.g. Do I still need Pap smears if I had the HPV vaccine?"></textarea>
+          <button id="ask-btn" type="submit" class="btn btn-primary">Ask</button>
+        </form>
+        <div id="ask-output" class="ask-output hidden"></div>
+      </section>
+
+      <!-- Editor view -->
+      <section id="editor-view" class="view hidden">
+        <div class="editor-head">
+          <span id="editor-path" class="editor-path"></span>
+          <div class="editor-tabs">
+            <button id="tab-write" class="tab active">Write</button>
+            <button id="tab-preview" class="tab">Preview</button>
+          </div>
+        </div>
+
+        <textarea id="editor-textarea" class="editor-textarea" spellcheck="false"></textarea>
+        <div id="editor-preview" class="editor-preview markdown hidden"></div>
+
+        <div class="editor-foot">
+          <button id="delete-btn" class="btn btn-danger">Delete</button>
+          <div class="editor-foot-right">
+            <span id="save-status" class="save-status"></span>
+            <button id="save-btn" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── New file modal ──────────────────────────────────────────────────────── -->
+<div id="new-modal" class="modal-overlay hidden">
+  <form id="new-form" class="modal">
+    <h2>New file</h2>
+    <label for="new-path">Path (relative to <code>wiki/</code>)</label>
+    <input id="new-path" type="text" placeholder="conditions/my-topic.md" />
+    <p class="muted small">A starter template with frontmatter is added automatically.</p>
+    <div class="modal-actions">
+      <button type="button" id="new-cancel" class="btn btn-link">Cancel</button>
+      <button type="submit" class="btn btn-primary">Create</button>
+    </div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
