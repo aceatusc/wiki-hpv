@@ -4,6 +4,87 @@ A small web app for reading, editing, and querying the wiki. Clean light theme, 
 
 ---
 
+## Installing & running
+
+### Requirements
+
+- **Python 3.10+** on the server (`start.sh` auto-selects the newest available `python3.x`).
+- **Claude Code** installed and authenticated as the user that runs the app — used for the
+  `query` / `ingest` / `lint` / `review` commands. Run `claude login` once; credentials live in
+  `~/.claude/` and are picked up automatically. **No API key needed.**
+- A clone of this repo on the server (the app edits the `wiki/` folder next to it).
+
+### 1. Configure
+
+From the `web/` directory, copy the example env file and fill it in:
+
+```bash
+cd web
+cp .env.example .env
+```
+
+Edit `.env` — at minimum set:
+
+| Variable | What it is |
+|----------|------------|
+| `WIKI_PASSWORD` | The single shared password everyone signs in with. |
+| `JWT_SECRET` | Secret for signing sessions. Generate one: `python3 -c "import secrets; print(secrets.token_hex(32))"` |
+| `WIKI_REPO_PATH` | Absolute path to the `wiki-hpv` repo on this server. |
+
+Optional: `CORS_ORIGINS`, `JWT_EXPIRY_HOURS`, `EDIT_LOG_PATH` (see `.env.example`).
+
+### 2. Run
+
+```bash
+bash start.sh
+```
+
+`start.sh` creates a virtualenv in `web/venv/`, installs `requirements.txt`, loads `.env`, and starts
+the server. By default it binds `0.0.0.0:8000` — override with `BIND_HOST` / `BIND_PORT`:
+
+```bash
+BIND_PORT=9000 bash start.sh
+```
+
+Then open `http://YOUR_HOST:8000`. The backend serves the frontend and the API from the same port, so
+there's nothing else to start.
+
+> **Note:** the server does not auto-reload. After changing backend code or `.env`, stop it
+> (`Ctrl-C`) and re-run `start.sh` to pick up the changes.
+
+### 3. Put it behind nginx (production)
+
+Run the app on localhost and reverse-proxy to it. The Ask/command endpoints stream via SSE, so
+disable proxy buffering:
+
+```nginx
+server {
+    listen 80;
+    server_name wiki.example.org;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Required for the streaming (SSE) endpoints
+        proxy_buffering    off;
+        proxy_read_timeout 300s;
+        add_header         X-Accel-Buffering no;
+    }
+}
+```
+
+`start.sh` already passes `--proxy-headers --forwarded-allow-ips "*"`, so the app trusts nginx's
+`X-Forwarded-*` headers. Add TLS (e.g. with certbot) and consider setting `CORS_ORIGINS` to your real
+origin instead of `*`.
+
+To keep it running across reboots, wrap `start.sh` in a systemd unit or run it under `tmux`/`screen`.
+
+---
+
 ## Signing in
 
 Open the editor URL and enter **your name** and the **shared password**. Your name is recorded on
