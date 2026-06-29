@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .auth import create_token, verify_password, verify_token
@@ -27,6 +27,22 @@ app.add_middleware(
 
 WIKI_REPO_PATH = Path(os.environ.get("WIKI_REPO_PATH", Path(__file__).parent.parent.parent))
 WIKI_DIR = WIKI_REPO_PATH / "wiki"
+
+
+def _norm_base_path(raw: str) -> str:
+    """Normalize the public mount path to start and end with a single '/'.
+    '' or '/' → '/'; 'chathpv/wiki' → '/chathpv/wiki/'."""
+    raw = (raw or "/").strip()
+    if not raw.startswith("/"):
+        raw = "/" + raw
+    if not raw.endswith("/"):
+        raw = raw + "/"
+    return raw
+
+
+# Public path the app is served under (set this to match the nginx location,
+# e.g. BASE_PATH=/chathpv/wiki when reverse-proxied under a sub-path).
+BASE_PATH = _norm_base_path(os.environ.get("BASE_PATH", "/"))
 
 
 def _safe_path(rel: str) -> Path:
@@ -227,6 +243,15 @@ def health():
 _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 
+def _index_response() -> HTMLResponse:
+    """Serve index.html with <base href> set to the public mount path, so the
+    frontend's relative assets/links/API calls resolve under any sub-path."""
+    html = (_FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+    if BASE_PATH != "/":
+        html = html.replace('<base href="/" />', f'<base href="{BASE_PATH}" />')
+    return HTMLResponse(html)
+
+
 @app.get("/{full_path:path}")
 def spa(full_path: str):
     """Serve frontend assets, and fall back to index.html for any other path so
@@ -237,4 +262,4 @@ def spa(full_path: str):
         candidate = (_FRONTEND_DIR / full_path).resolve()
         if candidate.is_file() and _FRONTEND_DIR.resolve() in candidate.parents:
             return FileResponse(candidate)
-    return FileResponse(_FRONTEND_DIR / "index.html")
+    return _index_response()

@@ -1,7 +1,24 @@
 /* HPV Wiki Editor — frontend */
 
 const $ = (id) => document.getElementById(id);
-const API = "/api";
+
+// Public mount path the app is served under — derived from the <base href> the
+// backend injects (e.g. "/chathpv/wiki/" behind nginx, or "/" at the root).
+// Everything below builds URLs relative to this so the app works under any prefix.
+const BASE = new URL(document.baseURI).pathname.replace(/\/*$/, "/");
+const API = BASE.replace(/\/+$/, "") + "/api";
+
+// Build an in-app URL under the mount path. appUrl("") → BASE; appUrl("a/b.md")
+// → BASE + "a/b.md"; appUrl("?ask") → BASE + "?ask".
+function appUrl(p) { return BASE + String(p).replace(/^\/+/, ""); }
+
+// Turn a browser pathname into an internal wiki path (strip mount prefix + slashes).
+function stripBase(pathname) {
+  let p = decodeURIComponent(pathname || "");
+  const base = decodeURIComponent(BASE);
+  if (p.startsWith(base)) p = p.slice(base.length);
+  return p.replace(/^\/+/, "").replace(/\/+$/, "");
+}
 
 const fileIndex = new Set();   // every file path in the tree
 const dirIndex = new Map();    // dir path -> { setOpen(bool) }
@@ -113,7 +130,7 @@ function showHome({ push = true } = {}) {
   $("home-view").classList.remove("hidden");
   setNav("home");
   highlightTree();
-  if (push) navTo("/");
+  if (push) navTo(appUrl(""));
 }
 
 function showAsk({ push = true } = {}) {
@@ -124,7 +141,7 @@ function showAsk({ push = true } = {}) {
   $("ask-view").classList.remove("hidden");
   setNav("ask");
   highlightTree();
-  if (push) navTo("/?ask");
+  if (push) navTo(appUrl("?ask"));
 }
 
 function showEditor() {
@@ -165,7 +182,7 @@ function treeNode(node) {
   row.className = "tree-row";
   row.dataset.path = node.path;
   row.dataset.type = node.type;
-  row.href = "/" + encPath(node.path) + (node.type === "dir" ? "/" : "");
+  row.href = appUrl(encPath(node.path) + (node.type === "dir" ? "/" : ""));
 
   if (node.type === "dir") {
     let open = false;                              // folders start collapsed
@@ -242,7 +259,7 @@ async function openFile(path, { push = true } = {}) {
     selectTab("write");
     showEditor();
     highlightTree();
-    if (push) navTo("/" + encPath(path));
+    if (push) navTo(appUrl(encPath(path)));
   } catch (err) {
     alert(`Could not open file: ${err.message}`);
   }
@@ -443,7 +460,7 @@ function navTo(url) {
 }
 
 function currentPath() {
-  return decodeURIComponent(location.pathname).replace(/^\/+/, "").replace(/\/+$/, "");
+  return stripBase(location.pathname);
 }
 
 /* ── Markdown + wiki links ───────────────────────────────────────────────── */
@@ -466,7 +483,7 @@ function preprocessWikilinks(md) {
     const [target, alias] = inner.split("|");
     const text = (alias || target).trim();
     const path = resolveTarget(target);
-    return path ? `[${text}](/${encPath(path)})` : text;
+    return path ? `[${text}](${appUrl(encPath(path))})` : text;
   });
 }
 
@@ -511,7 +528,7 @@ function interceptWikiLinks(container) {
     let url;
     try { url = new URL(a.href, location.origin); } catch { return; }
     if (url.origin !== location.origin) return;
-    const raw = decodeURIComponent(url.pathname).replace(/^\/+/, "").replace(/\/+$/, "");
+    const raw = stripBase(url.pathname);
     const path = resolveTarget(raw);
     if (path) {
       e.preventDefault();

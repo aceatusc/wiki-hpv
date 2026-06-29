@@ -55,25 +55,43 @@ there's nothing else to start.
 ### 3. Put it behind nginx (production)
 
 Run the app on localhost and reverse-proxy to it. The Ask/command endpoints stream via SSE, so
-disable proxy buffering:
+disable proxy buffering.
+
+**At the domain root** (e.g. `https://wiki.example.org/`):
 
 ```nginx
-server {
-    listen 80;
-    server_name wiki.example.org;
+location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    # Required for the streaming (SSE) endpoints
+    proxy_buffering    off;
+    proxy_read_timeout 300s;
+    add_header         X-Accel-Buffering no;
+}
+```
 
-        # Required for the streaming (SSE) endpoints
-        proxy_buffering    off;
-        proxy_read_timeout 300s;
-        add_header         X-Accel-Buffering no;
-    }
+**Under a sub-path** (e.g. `https://host/chathpv/wiki/`) — two things must line up:
+
+1. The `proxy_pass` URL **ends with `/`** so nginx strips the prefix before the app sees it.
+2. **`BASE_PATH` in `.env` matches the location** (`BASE_PATH=/chathpv/wiki`). The app injects this
+   into `<base href>` so the browser loads `style.css`, `app.js`, the API, and page links from under
+   the sub-path instead of the domain root. Without it, only the bare HTML loads (no styling/JS).
+
+```nginx
+location /chathpv/wiki/ {
+    proxy_pass http://127.0.0.1:8000/;   # the trailing / strips the prefix
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_buffering    off;
+    proxy_read_timeout 300s;
+    add_header         X-Accel-Buffering no;
 }
 ```
 
